@@ -11,6 +11,9 @@
 # misc
 .DS_Store
 
+# editor
+.vscode
+
 # env files (can opt-in for committing if needed)
 .env*
 

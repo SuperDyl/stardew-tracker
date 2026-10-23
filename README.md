@@ -33,6 +33,19 @@ you will need to update the code:
 pnpm install
 ```
 
+## Development
+
+The app uses NextJS with app router
+and server components.
+
+Styling is done via css modules.
+
+To run the project, use:
+
+```bash
+pnpm run dev
+```
+
 ## Planned features
 
 * Login to any archipelago
