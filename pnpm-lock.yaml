@@ -109,6 +109,9 @@ importers:
 
   .:
     dependencies:
+      archipelago.js:
+        specifier: ^2.1.0
+        version: 2.1.0
       next:
         specifier: 16.4.2
         version: 16.4.2(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@20.19.43)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -769,6 +772,10 @@ packages:
   ansi-styles@4.3.0:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
+
+  archipelago.js@2.1.0:
+    resolution: {integrity: sha512-9Zq/lyhSHgUfzHNAm5NyBk1Kl10hf55/jQ1Navz6Z/Wz49bd4MRzbS8CcWDnQd7IoBH8s1p4cVn69iyHaljQKA==}
+    engines: {node: '>= 18.0.0'}
 
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
@@ -2490,6 +2497,8 @@ snapshots:
   ansi-styles@4.3.0:
     dependencies:
       color-convert: 2.0.1
+
+  archipelago.js@2.1.0: {}
 
   argparse@2.0.1: {}
 
