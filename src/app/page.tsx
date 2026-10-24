@@ -59,6 +59,20 @@ export default function Home() {
     setCheckedLocations(new Set(clientRef.current.room.checkedLocations));
     setMissingLocations(new Set(clientRef.current.room.missingLocations));
 
+    clientRef.current.room.on(
+      "locationsChecked",
+      locationsChecked => {
+        // console.log("locationsChecked", locationsChecked);
+        setCheckedLocations(checkedLocations =>
+          checkedLocations === null
+          ? null
+          : checkedLocations.union(new Set(locationsChecked)));
+        setMissingLocations(missingLocations =>
+          missingLocations === null
+          ? null
+          : missingLocations.difference(new Set(locationsChecked)));
+      });
+
   }, [loadedPlayer, playerName]);
 
   return (
