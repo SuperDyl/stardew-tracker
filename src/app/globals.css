@@ -1,6 +1,8 @@
 * {
   /* Colors */
   --neutral-100: #dddddd;
+  --neutral-300: #bbbbbb;
+  --neutral-500: #888888;
   --neutral-900: #222222;
 
   --background: var(--neutral-100);

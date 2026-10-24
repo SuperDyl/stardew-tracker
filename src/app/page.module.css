@@ -17,3 +17,7 @@
   font-family: var(--font-geist-sans);
   background-color: var(--background);
 }
+
+.checked {
+  color: var(--neutral-300);
+}
