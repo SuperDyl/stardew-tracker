@@ -7,42 +7,37 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 class StardewChecks {
   public client: Client;
-  public allChecks: Set<number>;
+  public allChecks: Map<number, string>;
   public completedChecks: Set<number>;
-  public checkNameMappings: Map<number, string>;
 
   private constructor(
       client: Client,
-      allChecks: Set<number>,
-      completedChecks: Set<number>,
-      checkNameMappings: Map<number, string>) {
+      allChecks: Map<number, string>,
+      completedChecks: Set<number>) {
     this.client = client;
     this.allChecks = allChecks;
     this.completedChecks = completedChecks;
-    this.checkNameMappings = checkNameMappings;
   }
 
   public static create(client: Client) {
     return new StardewChecks(
       client,
-      new Set(client.room.allLocations),
-      new Set(client.room.checkedLocations),
       new Map(
-        client.room.allLocations.map(check => [
-          check,
-          client.package.lookupItemName("Stardew Valley", check)])));
+        client.room.allLocations.map(location => [
+          location,
+          client.package.lookupLocationName("Stardew Valley", location)])),
+      new Set(client.room.checkedLocations));
   }
 
   public addChecks(newChecks: Iterable<number>): StardewChecks {
     return new StardewChecks(
       this.client,
       this.allChecks,
-      this.completedChecks.union(new Set(newChecks)),
-      this.checkNameMappings);
+      this.completedChecks.union(new Set(newChecks)));
   }
 
   public getMissingChecks(): Set<number> {
-    return this.allChecks.difference(this.completedChecks);
+    return new Set(this.allChecks.keys()).difference(this.completedChecks);
   }
 }
 
@@ -133,7 +128,7 @@ export default function Home() {
             <>
               <h2>Completed Checks</h2>
               <ul>
-                {[...stardewChecks.completedChecks].map(checkedLocation => <li key={checkedLocation}>{checkedLocation}</li>)}
+                {[...stardewChecks.completedChecks].map(checkedLocation => <li key={checkedLocation}>{stardewChecks.allChecks.get(checkedLocation)}</li>)}
               </ul>
             </>
           }
@@ -141,7 +136,7 @@ export default function Home() {
             <>
               <h2>Missing Checks</h2>
               <ul>
-                {[...missingChecks].map(missingLocation => <li key={missingLocation}>{missingLocation}</li>)}
+                {[...missingChecks].map(missingLocation => <li key={missingLocation}>{stardewChecks.allChecks.get(missingLocation)}</li>)}
               </ul>
             </>
           }
