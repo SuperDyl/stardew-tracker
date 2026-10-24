@@ -17,7 +17,11 @@ export default function Home() {
   const [loadingPlayer, setLoadingPlayer] = useState<string | null>(null);
   const [loadPlayerError, setPlayerLoadError] = useState<string | null>(null);
 
-  const connect = useCallback(() => {
+  const [, setAllLocations] = useState<Set<number> | null>(null);
+  const [checkedLocations, setCheckedLocations] = useState<Set<number> | null>(null);
+  const [missingLocations, setMissingLocations] = useState<Set<number> | null>(null);
+
+  const connect = useCallback(async () => {
     const cleanedPlayerName = playerName.trim();
     setPlayerLoadError(null);
 
@@ -33,17 +37,27 @@ export default function Home() {
 
     clientRef.current = new Client();
 
-    clientRef.current.login('ws://localhost:38281', cleanedPlayerName)
-      .then(slotData => {
-        setLoadedPlayer(cleanedPlayerName)
-        setSlotData(slotData as SlotData);
-        console.log('Received slot data: ', slotData);
-      })
-      .catch(error => {
+    try {
+      const slotData = await clientRef.current.login('ws://localhost:38281', cleanedPlayerName);
+      setLoadedPlayer(cleanedPlayerName)
+      setSlotData(slotData as SlotData);
+      // console.log('Received slot data: ', slotData);
+    }
+    catch (error) {
         console.error('Received error!', error);
         setPlayerLoadError('' + error);
-      })
-      .finally(() => setLoadingPlayer(null));
+    }
+    finally {
+      setLoadingPlayer(null)
+    }
+
+    // console.log("dataPackage", clientRef.current.package.exportPackage());
+    // console.log("allLocations", clientRef.current.room.allLocations);
+    // console.log("checkedLocations", clientRef.current.room.checkedLocations);
+    // console.log("missingLocations", clientRef.current.room.missingLocations);
+    setAllLocations(new Set(clientRef.current.room.allLocations));
+    setCheckedLocations(new Set(clientRef.current.room.checkedLocations));
+    setMissingLocations(new Set(clientRef.current.room.missingLocations));
 
   }, [loadedPlayer, playerName]);
 
@@ -67,6 +81,22 @@ export default function Home() {
       </form>
       {loadPlayerError !== null && <p>ERROR: {loadPlayerError}</p>}
       {loadedPlayer !== null && <p>Loaded player is <strong>{loadedPlayer}</strong></p>}
+      {checkedLocations !== null && checkedLocations.size > 0 &&
+        <>
+          <h2>Completed Checks</h2>
+          <ul>
+            {[...checkedLocations].map(checkedLocation => <li key={checkedLocation}>{checkedLocation}</li>)}
+          </ul>
+        </>
+      }
+      {missingLocations !== null && missingLocations.size > 0 &&
+        <>
+          <h2>Missing Checks</h2>
+          <ul>
+            {[...missingLocations].map(missingLocation => <li key={missingLocation}>{missingLocation}</li>)}
+          </ul>
+        </>
+      }
     </>
   );
 }
