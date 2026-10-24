@@ -3,7 +3,48 @@
 import { SlotData } from "@/types";
 
 import { Client} from "archipelago.js";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+
+class StardewChecks {
+  public client: Client;
+  public allChecks: Set<number>;
+  public completedChecks: Set<number>;
+  public checkNameMappings: Map<number, string>;
+
+  private constructor(
+      client: Client,
+      allChecks: Set<number>,
+      completedChecks: Set<number>,
+      checkNameMappings: Map<number, string>) {
+    this.client = client;
+    this.allChecks = allChecks;
+    this.completedChecks = completedChecks;
+    this.checkNameMappings = checkNameMappings;
+  }
+
+  public static create(client: Client) {
+    return new StardewChecks(
+      client,
+      new Set(client.room.allLocations),
+      new Set(client.room.checkedLocations),
+      new Map(
+        client.room.allLocations.map(check => [
+          check,
+          client.package.lookupItemName("Stardew Valley", check)])));
+  }
+
+  public addChecks(newChecks: Iterable<number>): StardewChecks {
+    return new StardewChecks(
+      this.client,
+      this.allChecks,
+      this.completedChecks.union(new Set(newChecks)),
+      this.checkNameMappings);
+  }
+
+  public getMissingChecks(): Set<number> {
+    return this.allChecks.difference(this.completedChecks);
+  }
+}
 
 
 export default function Home() {
@@ -17,9 +58,7 @@ export default function Home() {
   const [loadingPlayer, setLoadingPlayer] = useState<string | null>(null);
   const [loadPlayerError, setPlayerLoadError] = useState<string | null>(null);
 
-  const [, setAllLocations] = useState<Set<number> | null>(null);
-  const [checkedLocations, setCheckedLocations] = useState<Set<number> | null>(null);
-  const [missingLocations, setMissingLocations] = useState<Set<number> | null>(null);
+  const [stardewChecks, setStardewChecks] = useState<StardewChecks | null>(null);
 
   const connect = useCallback(async () => {
     const cleanedPlayerName = playerName.trim();
@@ -55,25 +94,18 @@ export default function Home() {
     // console.log("allLocations", clientRef.current.room.allLocations);
     // console.log("checkedLocations", clientRef.current.room.checkedLocations);
     // console.log("missingLocations", clientRef.current.room.missingLocations);
-    setAllLocations(new Set(clientRef.current.room.allLocations));
-    setCheckedLocations(new Set(clientRef.current.room.checkedLocations));
-    setMissingLocations(new Set(clientRef.current.room.missingLocations));
+    setStardewChecks(StardewChecks.create(clientRef.current));
 
     clientRef.current.room.on(
       "locationsChecked",
       locationsChecked => {
         // console.log("locationsChecked", locationsChecked);
-        setCheckedLocations(checkedLocations =>
-          checkedLocations === null
-          ? null
-          : checkedLocations.union(new Set(locationsChecked)));
-        setMissingLocations(missingLocations =>
-          missingLocations === null
-          ? null
-          : missingLocations.difference(new Set(locationsChecked)));
+        setStardewChecks(stardewChecks => stardewChecks!.addChecks(locationsChecked));
       });
 
   }, [loadedPlayer, playerName]);
+
+  const missingChecks = useMemo(() => stardewChecks?.getMissingChecks() ?? null, [stardewChecks]);
 
   return (
     <>
@@ -95,20 +127,24 @@ export default function Home() {
       </form>
       {loadPlayerError !== null && <p>ERROR: {loadPlayerError}</p>}
       {loadedPlayer !== null && <p>Loaded player is <strong>{loadedPlayer}</strong></p>}
-      {checkedLocations !== null && checkedLocations.size > 0 &&
+      {stardewChecks !== null &&
         <>
-          <h2>Completed Checks</h2>
-          <ul>
-            {[...checkedLocations].map(checkedLocation => <li key={checkedLocation}>{checkedLocation}</li>)}
-          </ul>
-        </>
-      }
-      {missingLocations !== null && missingLocations.size > 0 &&
-        <>
-          <h2>Missing Checks</h2>
-          <ul>
-            {[...missingLocations].map(missingLocation => <li key={missingLocation}>{missingLocation}</li>)}
-          </ul>
+          {stardewChecks.completedChecks.size > 0 &&
+            <>
+              <h2>Completed Checks</h2>
+              <ul>
+                {[...stardewChecks.completedChecks].map(checkedLocation => <li key={checkedLocation}>{checkedLocation}</li>)}
+              </ul>
+            </>
+          }
+          {missingChecks !== null && missingChecks.size > 0 &&
+            <>
+              <h2>Missing Checks</h2>
+              <ul>
+                {[...missingChecks].map(missingLocation => <li key={missingLocation}>{missingLocation}</li>)}
+              </ul>
+            </>
+          }
         </>
       }
     </>
