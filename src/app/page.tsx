@@ -7,6 +7,9 @@ import { SlotData } from "@/types";
 import { Client} from "archipelago.js";
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 
+const GAME = "Stardew Valley" as const;
+const NAME_GROUP_KEY = `_read_location_name_groups_${GAME}` as const;
+
 type CheckData = {
   id: number,
   name: string,
@@ -14,213 +17,244 @@ type CheckData = {
 };
 
 enum CheckGroup {
-  PURCHASE = "Purchase",
-  MOVIE = "Watch Movie",
-  SECRET_NOTE = "Secret Note",
-  FISHING_SECRET = "Fishing Secret",
-  WALNUTSANITY = "Walnutsanity",
-  READ = "Read",
-  RECIPE = "Recipe",
-  COOK = "Cook",
-  MONSTER_ERADICATION = "Monster Eradication",
-  HARVEST = "Harvest",
-  RARECROW = "Rarecrow",
-  STARDROP = "Stardrop",
-  TRASH_BEAR = "Trash Bear",
+  ROOM = "Community Center Room",
   BUNDLE = "Bundle",
-  ROOM = "Room",
-  TOOL = "Tool",
-  CUTSCENE = "Cutscene",
-  QUEST = "Quest",
-  MINES_TREASURE = "Mines Treasure",
-  ELEVATOR = "Elevator",
   LEVEL = "Level",
+  TOOL = "Tool",
+  MINES = "Mines",
+  MONSTERSANITY = "Monster Eradication",
+  QUEST = "Quest",
   HELP_WANTED = "Help Wanted",
-  FISH = "Fish",
+  SPECIAL_ORDER = "Special Order Board",
+  FRIENDSHIP = "Friendship",
+  FESTIVAL = "Festival",
   MUSEUM = "Museum",
   BLUEPRINT = "Blueprint",
   TRAVELING_MERCHANT = "Traveling Merchant",
-  SHIPSANITY = "Shipsanity",
-  FRIENDSHIP = "Friendship",
+  FISHSANITY = "Fishsanity",
   RACCOON = "Raccoon",
+  TRASH_BEAR = "Trash Bear",
+  CRAFT = "Craft",
+  SECRET_NOTE = "Secret Note",
   SECRET = "Secret",
-  EATSANITY = "Eatsanity",
-  HAT = "Hat",
-  SHARE = "Share",
   ARCADE_MACHINE = "Arcade Machine",
+  MOVIE = "Watch Movie",
+  MOVIE_SNACK = "Eat Movie Snack",
+  BOOKSANITY_LOST = "Lost Book",
+  BOOKSANITY_POWER = "Power Book",
+  BOOKSANITY_SKILL = "Skill Book",
+  CROPSANITY = "Harvest Crop",
+  SHIPSANITY_CROP = "Ship Crop",
+  SHIPSANITY_FISH = "Ship Fish",
+  SHIPSANITY = "Ship Other",
+  CHEFSANITY = "Learn Cooking Recipe",
+  COOKSANITY = "Cook",
+  EATSANITY_ARTISAN = "Eatsanity Artisan",
+  EATSANITY_COOKING = "Eatsanity Cooking",
+  EATSANITY_CROP = "Eatsanity Crop",
+  EATSANITY_FISH = "Eatsanity Fish",
+  EATSANITY_POISONOUS = "Eatsanity Poisonous",
+  EATSANITY_SHOP = "Eatsanity Shop",
+  HATSANITY = "Hatsanity",
+  SPECIAL_ORDER_QI = "Special Order Qi",
+  WALNUT = "Walnut",
+  WALNUT_PURCHASE = "Walnut Purchase",
+  GINGER_ISLAND = "Ginger Island",
+  SPOUSE = "Spouse",
+  ENDGAME = "Endgame",
   OTHER = "Other",
-};
-
-const GROUPS = [
-  CheckGroup.PURCHASE,
-  CheckGroup.MOVIE,
-  CheckGroup.FISHING_SECRET,
-  CheckGroup.COOK,
-  CheckGroup.HARVEST,
-  CheckGroup.RARECROW,
-  CheckGroup.STARDROP,
-  CheckGroup.TRASH_BEAR,
-  CheckGroup.BUNDLE,
-  CheckGroup.ROOM,
-  CheckGroup.TOOL,
-  CheckGroup.CUTSCENE,
-  CheckGroup.QUEST,
-  CheckGroup.MINES_TREASURE,
-  CheckGroup.FRIENDSHIP,
-  CheckGroup.FISH,
-  CheckGroup.MUSEUM,
-  CheckGroup.LEVEL,
-  CheckGroup.BLUEPRINT,
-  CheckGroup.TRAVELING_MERCHANT,
-  CheckGroup.SHIPSANITY,
-  CheckGroup.RACCOON,
-  CheckGroup.SECRET,
-  CheckGroup.EATSANITY,
-  CheckGroup.SHARE,
-  CheckGroup.HAT,
-  CheckGroup.ARCADE_MACHINE,
-  CheckGroup.OTHER,
-] as const;
+}
 
 class StardewChecks {
   public client: Client;
   public allChecks: Map<number, string>;
   public completedChecks: Set<number>;
+  public locationGroupMapping: Map<string, CheckGroup>;
 
   private constructor(
       client: Client,
       allChecks: Map<number, string>,
-      completedChecks: Set<number>) {
+      completedChecks: Set<number>,
+      locationGroupMapping: Map<string, CheckGroup>) {
     this.client = client;
     this.allChecks = allChecks;
     this.completedChecks = completedChecks;
+    this.locationGroupMapping = locationGroupMapping;
   }
 
-  public static create(client: Client) {
+  public static async create(client: Client) {
+    const locationNameGroups = await client.storage.fetchLocationNameGroups(GAME) as unknown as {[NAME_GROUP_KEY]: Record<string, string[]>};
+    
+    const locationToGroups = new Map<string, string[]>();
+    for (const [group, locations] of Object.entries(locationNameGroups[NAME_GROUP_KEY])) {
+      for (const location of locations) {
+        let locationGroups = locationToGroups.get(location);
+        if (locationGroups === undefined) {
+          locationGroups = [];
+          locationToGroups.set(location, locationGroups);
+        }
+        locationGroups.push(group);
+      }
+    }
+
     return new StardewChecks(
       client,
       new Map(
         client.room.allLocations.map(location => [
           location,
-          client.package.lookupLocationName("Stardew Valley", location)])),
-      new Set(client.room.checkedLocations));
+          client.package.lookupLocationName(GAME, location)])),
+      new Set(client.room.checkedLocations),
+      new Map(
+        [...locationToGroups.entries()].map(([location, groups]) => [location, this.assignGroup(groups)])));
   }
 
   public addChecks(newChecks: Iterable<number>): StardewChecks {
     return new StardewChecks(
       this.client,
       this.allChecks,
-      this.completedChecks.union(new Set(newChecks)));
+      this.completedChecks.union(new Set(newChecks)),
+      this.locationGroupMapping);
   }
 
-  public getMissingChecks(): Set<number> {
-    return new Set(this.allChecks.keys()).difference(this.completedChecks);
-  }
-
-  public assignGroup(name: string): CheckGroup {
-    if (name.startsWith("Secret Note #")) {
-      return CheckGroup.SECRET_NOTE;
+  public static assignGroup(groupNames: Iterable<string>): CheckGroup {
+    const groupSet = new Set(groupNames);
+    if (groupSet.has("Booksanity Lost")) {
+      return CheckGroup.BOOKSANITY_LOST;
     }
-    if (name.startsWith("Fishing Secret: ")) {
-      return CheckGroup.FISHING_SECRET;
+    if (groupSet.has("Booksanity Power")) {
+      return CheckGroup.BOOKSANITY_POWER;
     }
-    if (name.startsWith("Walnutsanity: ")) {
-      return CheckGroup.WALNUTSANITY;
+    if (groupSet.has("Booksanity Skill")) {
+      return CheckGroup.BOOKSANITY_SKILL
     }
-    if (name.startsWith("Cook ")) {
-      return CheckGroup.COOK;
+    if (groupSet.has("Chefsanity")) {
+      return CheckGroup.CHEFSANITY;
     }
-    if (name.startsWith("Read ")) {
-      return CheckGroup.READ;
+    if (groupSet.has("Special Order Board")) {
+      return CheckGroup.SPECIAL_ORDER;
     }
-    if (name.startsWith("Monster Eradication: ")) {
-      return CheckGroup.MONSTER_ERADICATION;
+    if (groupSet.has("Hatsanity")) {
+      return CheckGroup.HATSANITY;
     }
-    if (name.startsWith("Harvest ")) {
-      return CheckGroup.HARVEST;
+    if (groupSet.has("Eatsanity Artisan")) {
+      return CheckGroup.EATSANITY_ARTISAN;
     }
-    if (name.startsWith("Rarecrow #")) {
-      return CheckGroup.RARECROW;
+    if (groupSet.has("Eatsanity Cooking")) {
+      return CheckGroup.EATSANITY_COOKING;
     }
-    if (name.startsWith("Fishsanity: ")) {
-      return CheckGroup.FISH;
+    if (groupSet.has("Eatsanity Crop")) {
+      return CheckGroup.EATSANITY_CROP;
     }
-    if (name.startsWith("Friendsanity: ")) {
-      return CheckGroup.FRIENDSHIP;
+    if (groupSet.has("Eatsanity Fish")) {
+      return CheckGroup.EATSANITY_FISH;
     }
-    if (name.startsWith("Museumsanity: ")) {
-      return CheckGroup.MUSEUM;
+    if (groupSet.has("Eatsanity Poisonous")) {
+      return CheckGroup.EATSANITY_POISONOUS;
     }
-    if (name.startsWith("Help Wanted: ")) {
-      return CheckGroup.HELP_WANTED;
+    if (groupSet.has("Eatsanity Shop")) {
+      return CheckGroup.EATSANITY_SHOP;
     }
-    if (name.startsWith("Secret: ")) {
-      return CheckGroup.SECRET;
+    if (groupSet.has("Endgame Locations")) {
+      return CheckGroup.ENDGAME;
     }
-    if (name.startsWith("JotPK: ")
-        || name.startsWith("Junimo Kart: ")
-        || name.startsWith("Journey of the Prairie King")) {
-      return CheckGroup.ARCADE_MACHINE;
+    if (groupSet.has("Craftsanity")) {
+      return CheckGroup.CRAFT;
     }
-    if (name.startsWith("Traveling Merchant ")) {
-      return CheckGroup.TRAVELING_MERCHANT;
+    if (groupSet.has("Cooksanity")) {
+      return CheckGroup.COOKSANITY;
     }
-    if (name.startsWith("Quest: ")) {
-      return CheckGroup.QUEST;
+    if (groupSet.has("Monstersanity")) {
+      return CheckGroup.MONSTERSANITY;
     }
-    if (name.startsWith("Share ")) {
-      return CheckGroup.SHARE;
+    if (groupSet.has("Shipsanity Crop")) {
+      return CheckGroup.SHIPSANITY_CROP;
     }
-    if (name.startsWith("Wear ")) {
-      return CheckGroup.HAT;
+    if (groupSet.has("Shipsanity Fish")) {
+      return CheckGroup.SHIPSANITY_FISH;
     }
-    if (name.startsWith("Eat ") || name.startsWith("Drink ")) {
-      return CheckGroup.EATSANITY;
-    }
-    if (name.startsWith("Raccoon Request ")) {
-      return CheckGroup.RACCOON;
-    }
-    if (name.match(/^Shipsanity: .*/)) {
+    if (groupSet.has("Shipsanity")) {
       return CheckGroup.SHIPSANITY;
     }
-    if (name.startsWith("Level ") || name.endsWith(" Mastery")) {
-      return CheckGroup.LEVEL;
+    if (groupSet.has("Cropsanity")) {
+      return CheckGroup.CROPSANITY;
     }
-    if (name.match(/.* Bundle$/)) {
-      return CheckGroup.BUNDLE;
+    if (groupSet.has("Walnutsanity")) {
+      return CheckGroup.WALNUT;
     }
-    if (name.match(/^Complete .*/)) {
-      return CheckGroup.ROOM;
+    if (groupSet.has("Walnut Purchase")) {
+      return CheckGroup.WALNUT_PURCHASE;
     }
-    if (name.match(/.* Pack$/) || name.match(/.* Upgrade$/) || name.match(/.* Rod$/)) {
-      return CheckGroup.TOOL;
+    if (groupSet.has("Special Order Qi")) {
+      return CheckGroup.SPECIAL_ORDER_QI;
     }
-    if (name.match(/.* Blueprint$/)) {
+    if (groupSet.has("Festival")
+        || groupSet.has("Festival Hard")
+        || groupSet.has("Desert Festival Chef")
+        || groupSet.has("Desert Festival Chef Meal")) {
+      return CheckGroup.FESTIVAL;
+    }
+    if (groupSet.has("Friendsanity")) {
+      return CheckGroup.FRIENDSHIP;
+    }
+    if (groupSet.has("Museum Donations") || groupSet.has("Museum Milestones")) {
+      return CheckGroup.MUSEUM;
+    }
+    if (groupSet.has("Fishsanity")) {
+      return CheckGroup.FISHSANITY;
+    }
+    if (groupSet.has("Help Wanted")) {
+      return CheckGroup.HELP_WANTED;
+    }
+    if (groupSet.has("Secret Note")) {
+      return CheckGroup.SECRET_NOTE;
+    }
+    if (groupSet.has("Secretsanity")) {
+      return CheckGroup.SECRET;
+    }
+    if (groupSet.has("Traveling Merchant")) {
+      return CheckGroup.TRAVELING_MERCHANT;
+    }
+    if (groupSet.has("Story Quest")) {
+      return CheckGroup.QUEST;
+    }
+    if (groupSet.has("Building Blueprint")) {
       return CheckGroup.BLUEPRINT;
     }
-    if (name.match(/.* Cutscene$/) || ["Demetrius's Breakthrough"].includes(name)) {
-      return CheckGroup.CUTSCENE;
+    if (groupSet.has("Trash Bear")) {
+      return CheckGroup.TRASH_BEAR;
     }
-    if (name.match(/^The Mines Floor \d+ Treasure$/)) {
-      return CheckGroup.MINES_TREASURE;
+    if (groupSet.has("Skill Level")) {
+      return CheckGroup.LEVEL;
     }
-    if (name.match(/.* Elevator$/)) {
-      return CheckGroup.ELEVATOR;
+    if (groupSet.has("The Mines Treasure") ||groupSet.has("Elevator")) {
+      return CheckGroup.MINES;
     }
-    if (name.endsWith("Stardrop")) {
-      return CheckGroup.STARDROP;
+    if (groupSet.has("Tool Upgrade") || groupSet.has("Backpack")) {
+      return CheckGroup.TOOL;
     }
-    if (name.endsWith(" Recipe")) {
-      return CheckGroup.RECIPE;
+    if (groupSet.has("Community Center Room")) {
+      return CheckGroup.ROOM;
     }
-    if (name.startsWith("Watch ")) {
+    if (groupSet.has("Raccoon Bundles")) {
+      return CheckGroup.RACCOON;
+    }
+    if (groupSet.has("Bundle")) {
+      return CheckGroup.BUNDLE;
+    }
+    if (groupSet.has("Movie Snack")) {
+      return CheckGroup.MOVIE_SNACK;
+    }
+    if (groupSet.has("Any Movie") || groupSet.has("Movie")) {
       return CheckGroup.MOVIE;
     }
-    if (name.startsWith("Purchase ")) {
-      return CheckGroup.PURCHASE;
+    if (groupSet.has("Arcade Machine") || groupSet.has("Arcade Machine Victory")) {
+      return CheckGroup.ARCADE_MACHINE;
     }
-    if (name.startsWith("Trash Bear ")) {
-      return CheckGroup.TRASH_BEAR;
+    if (groupSet.has("Ginger Island")) {
+      return CheckGroup.GINGER_ISLAND;
+    }
+    if (groupSet.has("Baby")) {
+      return CheckGroup.GINGER_ISLAND;
     }
     return CheckGroup.OTHER;
   }
@@ -229,7 +263,12 @@ class StardewChecks {
     const groups = new Map<CheckGroup, CheckData[]>();
 
     for (const [checkId, checkName] of this.allChecks.entries()) {
-      const assignedGroup = this.assignGroup(checkName);
+      let assignedGroup = this.locationGroupMapping.get(checkName);
+      if (assignedGroup === undefined) {
+        console.error(`Couldn't find mapping for checkId=${checkId} checkName="${checkName}"`);
+        assignedGroup = CheckGroup.OTHER;
+      }
+
       let group = groups.get(assignedGroup);
       if (group === undefined) {
         group = [];
@@ -290,11 +329,12 @@ export default function Home() {
       setLoadingPlayer(null)
     }
 
+    // console.log("LocationNameGroups", await clientRef.current.storage.fetchLocationNameGroups(GAME))
     // console.log("dataPackage", clientRef.current.package.exportPackage());
     // console.log("allLocations", clientRef.current.room.allLocations);
     // console.log("checkedLocations", clientRef.current.room.checkedLocations);
     // console.log("missingLocations", clientRef.current.room.missingLocations);
-    setStardewChecks(StardewChecks.create(clientRef.current));
+    setStardewChecks(await StardewChecks.create(clientRef.current));
 
     clientRef.current.room.on(
       "locationsChecked",
@@ -312,7 +352,8 @@ export default function Home() {
       }
 
       const checks = stardewChecks.getGroupedChecks();
-      return GROUPS
+
+      return Object.values(CheckGroup)
         .map(group => ({group: group.toString(), groupItems: checks.get(group)}))
         .filter((group): group is { group: string; groupItems: CheckData[] } =>
           group.groupItems !== undefined);
