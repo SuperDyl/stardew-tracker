@@ -46,6 +46,17 @@ To run the project, use:
 pnpm run dev
 ```
 
+You can then access the page at http://localhost:3000.
+You'll need an archipelago to test again.
+I recommend hosting one locally,
+especially since that's the only way the website is setup to connect.
+
+## Features
+
+* See all checks and their status
+* Checks are grouped together
+* Level checks are compact
+
 ## Planned features
 
 * Login to any archipelago

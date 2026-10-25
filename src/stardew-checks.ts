@@ -333,7 +333,6 @@ export class StardewChecks {
             level = `${levelData.name}-${levelData.id}`;
             levelName = `${levelData.name}-${levelData.id}`;
           } else {
-            console.log("Level Match", levelMatch);
             level = levelMatch[1];
             levelName = levelMatch[2];
           }
