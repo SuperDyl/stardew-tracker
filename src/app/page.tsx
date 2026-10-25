@@ -6,7 +6,7 @@ import styles from './page.module.css';
 import { SlotData } from "@/types";
 
 import { Client} from "archipelago.js";
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 
 export default function Home() {
@@ -93,14 +93,14 @@ export default function Home() {
       {loadPlayerError !== null && <p>ERROR: {loadPlayerError}</p>}
       {loadedPlayer !== null && <p>Loaded player is <strong>{loadedPlayer}</strong></p>}
       {checkGroups !== null &&
-        checkGroups.map(({group, groupItems}) => <Fragment key={group}>
-          <h2>{group} Checks</h2>
+        checkGroups.map(({group, groupItems}) => <details key={group}>
+          <summary id={group.toLowerCase().replaceAll(" ", "-")}>{group} Checks</summary>
           <ul>
             {groupItems.map(item => <li key={item.id} className={item.completed ? styles.checked : ''}>
               {item.name}
             </li>)}
           </ul>
-        </Fragment>)
+        </details>)
       }
     </>
   );
