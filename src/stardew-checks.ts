@@ -70,12 +70,17 @@ export type LevelSubItem = {
 };
 
 export type Level = {
-    skill: string,
-    subItems: LevelSubItem[],
+  skill: string,
+  subItems: Map<string, LevelSubItem>,
 };
 
+export type LevelTable = {
+  levelOptions: string[],
+  levels: Level[],
+}
+
 export type MappedChecks = {
-  level: Level[] | null,
+  level: LevelTable | null,
   other: OrderedGroup[],
 };
 
@@ -307,7 +312,7 @@ export class StardewChecks {
           group.groupItems !== undefined);
   }
 
-  private getLevelChecks(mappedChecks: OrderedGroup[]): Level[] | null {
+  private getLevelChecks(mappedChecks: OrderedGroup[]): LevelTable | null {
     const levelItems = mappedChecks.find(x => x.group === CheckGroup.LEVEL);
     if (levelItems === undefined) {
       return null;
@@ -346,27 +351,34 @@ export class StardewChecks {
         })
       }
 
-      return [...levelMapping.keys()]
-        .sort()
-        .map(levelName => ({
-          skill: levelName,
-          subItems: levelMapping
-            .get(levelName)!
-            .sort((a, b) => {
-              const parsedA = +a.levelName;
-              const parsedB = +b.levelName;
-              if (isNaN(parsedA) && isNaN(parsedB)) {
-                return a.levelName.localeCompare(b.levelName);
-              }
-              if (!isNaN(parsedA) && !isNaN(parsedB)) {
-                return parsedA - parsedB;
-              }
-              if (isNaN(parsedA)) {
-                return 1;
-              }
-              return -1;
-            }),
-        }));
+      return {
+        levelOptions: [...new Set(levelMapping
+            .values()
+            .flatMap(levelSubItems => levelSubItems
+              .map(levelSubItem => levelSubItem.levelName)))
+          ].sort((a, b) => {
+            const parsedA = +a;
+            const parsedB = +b;
+            if (isNaN(parsedA) && isNaN(parsedB)) {
+              return a.localeCompare(b);
+            }
+            if (!isNaN(parsedA) && !isNaN(parsedB)) {
+              return parsedA - parsedB;
+            }
+            if (isNaN(parsedA)) {
+              return 1;
+            }
+            return -1;
+          }),
+        levels: [...levelMapping.keys()]
+          .sort()
+          .map(levelName => ({
+            skill: levelName,
+            subItems: new Map<string, LevelSubItem>(levelMapping
+              .get(levelName)!
+              .map(levelSubItem => [levelSubItem.levelName, levelSubItem])),
+          })),
+      };
     }
   }
 

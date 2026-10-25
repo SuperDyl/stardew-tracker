@@ -97,25 +97,35 @@ export default function Home() {
         {checkGroups.level &&
           <details>
             <summary id="level">Level Checks</summary>
-            <ul>
-              {checkGroups.level.map(level =>
-                <li key={level.skill}>
-                  <span>{`${level.skill} - `}</span>
-                  {level.subItems.map((subItem, index) =>
-                    <Fragment key={`${subItem.id}`}>
-                      {index !== 0 &&
-                        <span key={`${level.skill}-divider-${index}`} className={styles.checked}>
-                          {" | "}
-                        </span>
-                      }
-                      <span key={`${level.skill}-${subItem.levelName}`} className={subItem.completed ? styles.checked : ''}>
-                        {subItem.levelName}
-                      </span>
-                    </Fragment>
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  {checkGroups.level.levelOptions.map(levelOption =>
+                    <th key={levelOption}>
+                      {levelOption}
+                    </th>
                   )}
-                </li>
-              )}
-            </ul>
+                </tr>
+              </thead>
+              <tbody>
+                {checkGroups.level.levels.map(level =>
+                  <tr key={level.skill}>
+                    <th>{level.skill}</th>
+                    {checkGroups.level!.levelOptions.map(levelOption => // Remove this !
+                      <td key={levelOption}>
+                        {!level.subItems.has(levelOption)
+                          ? ""
+                          : <span className={level.subItems.get(levelOption)!.completed ? styles.checked : ""}>
+                              {"X"}
+                            </span>
+                        }
+                      </td>
+                    )}
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </details>
         }
         {checkGroups.other.map(({group, groupItems}) =>
