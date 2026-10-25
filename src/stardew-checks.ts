@@ -56,12 +56,28 @@ export enum CheckGroup {
   SPOUSE = "Spouse",
   ENDGAME = "Endgame",
   OTHER = "Other",
-}
+};
 
 export type OrderedGroup = {
   group: string,
   groupItems: CheckData[],
-}
+};
+
+export type LevelSubItem = {
+  id: number,
+  levelName: string,
+  completed: boolean,
+};
+
+export type Level = {
+    skill: string,
+    subItems: LevelSubItem[],
+};
+
+export type MappedChecks = {
+  level: Level[] | null,
+  other: OrderedGroup[],
+};
 
 export class StardewChecks {
   public client: Client;
@@ -289,5 +305,77 @@ export class StardewChecks {
       .map(group => ({group: group.toString(), groupItems: checks.get(group)}))
       .filter((group): group is OrderedGroup =>
           group.groupItems !== undefined);
+  }
+
+  private getLevelChecks(mappedChecks: OrderedGroup[]): Level[] | null {
+    const levelItems = mappedChecks.find(x => x.group === CheckGroup.LEVEL);
+    if (levelItems === undefined) {
+      return null;
+    }
+    else {
+      const levelMapping = new Map<string, LevelSubItem[]>();
+      for (const levelData of levelItems.groupItems) {
+        let levelMatch = levelData.name.match(/(\w+) Mastery/);
+        let level;
+        let levelName;
+        if (levelMatch !== null) {
+          level = "Mastery";
+          levelName = levelMatch[1];
+        } else {
+          levelMatch = levelData.name.match(/Level (\d{1,2}) (\w+)/);
+          if (levelMatch === null) {
+            console.error(`Couldn't parse level type from location id=${levelData.id} name=${levelData.name}`);
+            level = `${levelData.name}-${levelData.id}`;
+            levelName = `${levelData.name}-${levelData.id}`;
+          } else {
+            console.log("Level Match", levelMatch);
+            level = levelMatch[1];
+            levelName = levelMatch[2];
+          }
+        }
+
+        let mappedLevels = levelMapping.get(levelName);
+        if (mappedLevels === undefined) {
+          mappedLevels = [];
+          levelMapping.set(levelName, mappedLevels);
+        }
+        mappedLevels.push({
+          id: levelData.id,
+          levelName: level,
+          completed: levelData.completed,
+        })
+      }
+
+      return [...levelMapping.keys()]
+        .sort()
+        .map(levelName => ({
+          skill: levelName,
+          subItems: levelMapping
+            .get(levelName)!
+            .sort((a, b) => {
+              const parsedA = +a.levelName;
+              const parsedB = +b.levelName;
+              if (isNaN(parsedA) && isNaN(parsedB)) {
+                return a.levelName.localeCompare(b.levelName);
+              }
+              if (!isNaN(parsedA) && !isNaN(parsedB)) {
+                return parsedA - parsedB;
+              }
+              if (isNaN(parsedA)) {
+                return 1;
+              }
+              return -1;
+            }),
+        }));
+    }
+  }
+
+  public getMappedChecks(): MappedChecks  {
+    const mappedChecks = this.getOrderedGroupedChecks();
+
+    return {
+      level: this.getLevelChecks(mappedChecks),
+      other: mappedChecks.filter(x => x.group !== CheckGroup.LEVEL),
+    }
   }
 }

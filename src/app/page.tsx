@@ -6,7 +6,7 @@ import styles from './page.module.css';
 import { SlotData } from "@/types";
 
 import { Client} from "archipelago.js";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 
 
 export default function Home() {
@@ -69,7 +69,7 @@ export default function Home() {
   }, [loadedPlayer, playerName]);
 
   const checkGroups = useMemo(
-    () => stardewChecks?.getOrderedGroupedChecks() ?? null,
+    () => stardewChecks?.getMappedChecks() ?? null,
     [stardewChecks]);
 
   return (
@@ -93,14 +93,44 @@ export default function Home() {
       {loadPlayerError !== null && <p>ERROR: {loadPlayerError}</p>}
       {loadedPlayer !== null && <p>Loaded player is <strong>{loadedPlayer}</strong></p>}
       {checkGroups !== null &&
-        checkGroups.map(({group, groupItems}) => <details key={group}>
-          <summary id={group.toLowerCase().replaceAll(" ", "-")}>{group} Checks</summary>
-          <ul>
-            {groupItems.map(item => <li key={item.id} className={item.completed ? styles.checked : ''}>
-              {item.name}
-            </li>)}
-          </ul>
-        </details>)
+      <>
+        {checkGroups.level &&
+          <details>
+            <summary id="level">Level Checks</summary>
+            <ul>
+              {checkGroups.level.map(level =>
+                <li key={level.skill}>
+                  <span>{`${level.skill} - `}</span>
+                  {level.subItems.map((subItem, index) =>
+                    <Fragment key={`${subItem.id}`}>
+                      {index !== 0 &&
+                        <span key={`${level.skill}-divider-${index}`} className={styles.checked}>
+                          {" | "}
+                        </span>
+                      }
+                      <span key={`${level.skill}-${subItem.levelName}`} className={subItem.completed ? styles.checked : ''}>
+                        {subItem.levelName}
+                      </span>
+                    </Fragment>
+                  )}
+                </li>
+              )}
+            </ul>
+          </details>
+        }
+        {checkGroups.other.map(({group, groupItems}) =>
+          <details key={group}>
+            <summary id={group.toLowerCase().replaceAll(" ", "-")}>{group} Checks</summary>
+            <ul>
+              {groupItems.map(item =>
+                <li key={item.id} className={item.completed ? styles.checked : ''}>
+                  {item.name}
+                </li>)
+              }
+            </ul>
+          </details>)
+        }
+      </>
       }
     </>
   );
